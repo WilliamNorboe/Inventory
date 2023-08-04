@@ -1,6 +1,8 @@
 const Pokemon = require("../models/pokemon");
 const asyncHandler = require("express-async-handler");
 
+const { body, validationResult } = require("express-validator");
+
 exports.index = asyncHandler(async (req, res, next) => {
     // Get details of pokemons, pokemon instances, authors and genre counts (in parallel)
     const [
@@ -47,17 +49,79 @@ exports.pokemon_detail = asyncHandler(async (req, res, next) => {
 
 // Display pokemon create form on GET.
 exports.pokemon_create_get = asyncHandler(async (req, res, next) => {
-  res.send("NOT IMPLEMENTED: Pokemon create GET");
+  // Get all authors and genres, which we can use for adding to our pokemon.
+
+  res.render("pokemon_form", {
+    name: "Create Pokemon",
+  });
 });
 
 // Handle pokemon create on POST.
-exports.pokemon_create_post = asyncHandler(async (req, res, next) => {
-  res.send("NOT IMPLEMENTED: Pokemon create POST");
-});
+exports.pokemon_create_post = [
+  // Convert the genre to an array.
 
-// Display pokemon delete form on GET.
-exports.pokemon_delete_get = asyncHandler(async (req, res, next) => {
-  res.send("NOT IMPLEMENTED: Pokemon delete GET");
+  // Validate and sanitize fields.
+  body("name", "Name must not be empty.")
+    .trim()
+    .isLength({ min: 1 })
+    .escape(),
+  body("description", "Description must not be empty.")
+    .trim()
+    .isLength({ min: 1 })
+    .escape(),
+  body("type", "Type must not be empty.")
+    .trim()
+    .isLength({ min: 1 })
+    .escape(),
+  body("Number", "Number must not be empty").trim().isLength({ min: 1 }).escape(),
+
+  asyncHandler(async (req, res, next) => {
+    // Extract the validation errors from a request.
+    const errors = validationResult(req);
+
+    // Create a Pokemon object with escaped and trimmed data.
+    const pokemon = new Pokemon({
+      name: req.body.name,
+      description: req.body.description,
+      type: req.body.type,
+      Number: req.body.Number,
+    });
+
+    if (!errors.isEmpty()) {
+      // There are errors. Render form again with sanitized values/error messages.
+
+      // Mark our selected genres as checked.
+      res.render("pokemon_form", {
+        name: "Create Pokemon",
+        pokemon: pokemon,
+        errors: errors.array(),
+      });
+    } else {
+      // Data from form is valid. Save pokemon.
+      await pokemon.save();
+      res.redirect(pokemon.url);
+    }
+  }),
+];
+
+// Display Author delete form on GET.
+exports.author_delete_get = asyncHandler(async (req, res, next) => {
+  // Get details of author and all their books (in parallel)
+  const [author, allBooksByAuthor] = await Promise.all([
+    Author.findById(req.params.id).exec(),
+    Book.find({ author: req.params.id }, "title summary").exec(),
+  ]);
+
+  if (author === null) {
+    // No results.
+    res.redirect("/catalog/authors");
+  }
+
+  res.render("author_delete", {
+    title: "Delete Author",
+    author: author,
+    author_books: allBooksByAuthor,
+  });
 });
 
 // Handle pokemon delete on POST.
