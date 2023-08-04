@@ -104,29 +104,34 @@ exports.pokemon_create_post = [
   }),
 ];
 
-// Display Author delete form on GET.
-exports.author_delete_get = asyncHandler(async (req, res, next) => {
-  // Get details of author and all their books (in parallel)
-  const [author, allBooksByAuthor] = await Promise.all([
-    Author.findById(req.params.id).exec(),
-    Book.find({ author: req.params.id }, "title summary").exec(),
+// Display Pokemon delete form on GET.
+exports.pokemon_delete_get = asyncHandler(async (req, res, next) => {
+  // Get details of pokemon and all their books (in parallel)
+  const [pokemon] = await Promise.all([
+    Pokemon.findById(req.params.id).exec(),
   ]);
 
-  if (author === null) {
+  if (pokemon === null) {
     // No results.
-    res.redirect("/catalog/authors");
+    res.redirect("/catalog/pokemons");
   }
 
-  res.render("author_delete", {
-    title: "Delete Author",
-    author: author,
-    author_books: allBooksByAuthor,
+  res.render("pokemon_delete", {
+    title: "Delete Pokemon",
+    pokemon: pokemon,
   });
 });
 
-// Handle pokemon delete on POST.
+// Handle Pokemon delete on POST.
 exports.pokemon_delete_post = asyncHandler(async (req, res, next) => {
-  res.send("NOT IMPLEMENTED: Pokemon delete POST");
+  // Get details of pokemon and all their books (in parallel)
+  const [pokemon] = await Promise.all([
+    Pokemon.findById(req.params.id).exec(),
+  ]);
+
+  // Pokemon has no books. Delete object and redirect to the list of pokemons.
+  await Pokemon.findByIdAndRemove(req.body.pokemonid);
+  res.redirect("/catalog/pokemons");
 });
 
 // Display pokemon update form on GET.
