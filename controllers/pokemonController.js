@@ -106,7 +106,7 @@ exports.pokemon_create_post = [
 
 // Display Pokemon delete form on GET.
 exports.pokemon_delete_get = asyncHandler(async (req, res, next) => {
-  // Get details of pokemon and all their books (in parallel)
+  // Get details of pokemon and all their pokemons (in parallel)
   const [pokemon] = await Promise.all([
     Pokemon.findById(req.params.id).exec(),
   ]);
@@ -124,22 +124,82 @@ exports.pokemon_delete_get = asyncHandler(async (req, res, next) => {
 
 // Handle Pokemon delete on POST.
 exports.pokemon_delete_post = asyncHandler(async (req, res, next) => {
-  // Get details of pokemon and all their books (in parallel)
+  // Get details of pokemon and all their pokemons (in parallel)
   const [pokemon] = await Promise.all([
     Pokemon.findById(req.params.id).exec(),
   ]);
 
-  // Pokemon has no books. Delete object and redirect to the list of pokemons.
+  // Pokemon has no pokemons. Delete object and redirect to the list of pokemons.
   await Pokemon.findByIdAndRemove(req.body.pokemonid);
   res.redirect("/catalog/pokemons");
 });
 
 // Display pokemon update form on GET.
 exports.pokemon_update_get = asyncHandler(async (req, res, next) => {
-  res.send("NOT IMPLEMENTED: Pokemon update GET");
+  // Get pokemon, authors and genres for form.
+  const [pokemon] = await Promise.all([
+    Pokemon.findById(req.params.id).exec(),
+  ]);
+
+  if (pokemon === null) {
+    // No results.
+    const err = new Error("Pokemon not found");
+    err.status = 404;
+    return next(err);
+  }
+
+  res.render("pokemon_form", {
+    title: "Update Pokemon",
+    pokemon: pokemon,
+  });
 });
 
 // Handle pokemon update on POST.
-exports.pokemon_update_post = asyncHandler(async (req, res, next) => {
-  res.send("NOT IMPLEMENTED: Pokemon update POST");
-});
+exports.pokemon_update_post = [
+  // Convert the genre to an array.
+  // Validate and sanitize fields.
+  body("name", "Name must not be empty.")
+    .trim()
+    .isLength({ min: 1 })
+    .escape(),
+  body("description", "Description must not be empty.")
+    .trim()
+    .isLength({ min: 1 })
+    .escape(),
+  body("type", "Type must not be empty.")
+    .trim()
+    .isLength({ min: 1 })
+    .escape(),
+  body("Number", "Number must not be empty").trim().isLength({ min: 1 }).escape(),
+
+  // Process request after validation and sanitization.
+  asyncHandler(async (req, res, next) => {
+    // Extract the validation errors from a request.
+    const errors = validationResult(req);
+
+    // Create a Pokemon object with escaped/trimmed data and old id.
+    const pokemon = new Pokemon({
+      name: req.body.name,
+      description: req.body.description,
+      type: req.body.type,
+      Number: req.body.Number,
+      _id: req.params.id,
+    });
+
+    if (!errors.isEmpty()) {
+      // There are errors. Render form again with sanitized values/error messages.
+
+      res.render("pokemon_form", {
+        title: "Update Pokemon",
+        pokemon: pokemon,
+        errors: errors.array(),
+      });
+      return;
+    } else {
+      // Data from form is valid. Update the record.
+      const updatedPokemon = await Pokemon.findByIdAndUpdate(req.params.id, pokemon, {});
+      // Redirect to pokemon detail page.
+      res.redirect(updatedPokemon.url);
+    }
+  }),
+];
